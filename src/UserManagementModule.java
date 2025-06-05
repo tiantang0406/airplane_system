@@ -132,17 +132,15 @@ public class UserManagementModule extends JFrame {
         }
     }
     public static class DatabaseManager {
-        private static final String DB_URL = "jdbc:mysql://localhost:3306/airplane_system";
-        private static final String DB_USER = "root";
-        private static final String DB_PASSWORD = "password";
+        private static final String DB_URL = "jdbc:sqlite:airplane_system.db";
         
         static {
             try {
-                Class.forName("com.mysql.cj.jdbc.Driver");
-                initializeDatabase();
+            Class.forName("org.sqlite.JDBC");
+            initializeDatabase();
             } catch (ClassNotFoundException e) {
-                System.err.println("MySQL JDBC Driver not found.");
-                e.printStackTrace();
+            System.err.println("SQLite JDBC Driver not found.");
+            e.printStackTrace();
             }
         }
         
@@ -150,7 +148,7 @@ public class UserManagementModule extends JFrame {
          * 获取数据库连接
          */
         public static Connection getConnection() throws SQLException {
-            return DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+            return DriverManager.getConnection(DB_URL);
         }
         
         /**
@@ -159,20 +157,20 @@ public class UserManagementModule extends JFrame {
         public static User getUserByUsername(String username) {
             String sql = "SELECT * FROM users WHERE username = ?";
             try (Connection conn = getConnection();
-                 PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setString(1, username);
-                try (ResultSet rs = stmt.executeQuery()) {
-                    if (rs.next()) {
-                        return new User(
-                            rs.getString("username"),
-                            rs.getString("phone"),
-                            rs.getString("role"),
-                            rs.getString("status")
-                        );
-                    }
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, username);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                return new User(
+                    rs.getString("username"),
+                    rs.getString("phone"),
+                    rs.getString("role"),
+                    rs.getString("status")
+                );
                 }
+            }
             } catch (SQLException e) {
-                e.printStackTrace();
+            e.printStackTrace();
             }
             return null;
         }
@@ -183,20 +181,20 @@ public class UserManagementModule extends JFrame {
         public static User getUserByPhone(String phone) {
             String sql = "SELECT * FROM users WHERE phone = ?";
             try (Connection conn = getConnection();
-                 PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setString(1, phone);
-                try (ResultSet rs = stmt.executeQuery()) {
-                    if (rs.next()) {
-                        return new User(
-                            rs.getString("username"),
-                            rs.getString("phone"),
-                            rs.getString("role"),
-                            rs.getString("status")
-                        );
-                    }
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, phone);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                return new User(
+                    rs.getString("username"),
+                    rs.getString("phone"),
+                    rs.getString("role"),
+                    rs.getString("status")
+                );
                 }
+            }
             } catch (SQLException e) {
-                e.printStackTrace();
+            e.printStackTrace();
             }
             return null;
         }
@@ -207,13 +205,13 @@ public class UserManagementModule extends JFrame {
         public static boolean updateUserRole(String username, String role) {
             String sql = "UPDATE users SET role = ? WHERE username = ?";
             try (Connection conn = getConnection();
-                 PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setString(1, role);
-                stmt.setString(2, username);
-                return stmt.executeUpdate() > 0;
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, role);
+            stmt.setString(2, username);
+            return stmt.executeUpdate() > 0;
             } catch (SQLException e) {
-                e.printStackTrace();
-                return false;
+            e.printStackTrace();
+            return false;
             }
         }
         
@@ -223,13 +221,13 @@ public class UserManagementModule extends JFrame {
         public static boolean updateUserStatus(String username, String status) {
             String sql = "UPDATE users SET status = ? WHERE username = ?";
             try (Connection conn = getConnection();
-                 PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setString(1, status);
-                stmt.setString(2, username);
-                return stmt.executeUpdate() > 0;
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, status);
+            stmt.setString(2, username);
+            return stmt.executeUpdate() > 0;
             } catch (SQLException e) {
-                e.printStackTrace();
-                return false;
+            e.printStackTrace();
+            return false;
             }
         }
         
@@ -239,13 +237,13 @@ public class UserManagementModule extends JFrame {
         public static boolean resetUserPassword(String username, String newPassword) {
             String sql = "UPDATE users SET password = ? WHERE username = ?";
             try (Connection conn = getConnection();
-                 PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setString(1, newPassword);
-                stmt.setString(2, username);
-                return stmt.executeUpdate() > 0;
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, newPassword);
+            stmt.setString(2, username);
+            return stmt.executeUpdate() > 0;
             } catch (SQLException e) {
-                e.printStackTrace();
-                return false;
+            e.printStackTrace();
+            return false;
             }
         }
         
@@ -254,37 +252,37 @@ public class UserManagementModule extends JFrame {
          */
         private static void initializeDatabase() {
             String createTableSQL = 
-                "CREATE TABLE IF NOT EXISTS users (" +
-                "username VARCHAR(50) PRIMARY KEY, " +
-                "password VARCHAR(100) NOT NULL, " +
-                "phone VARCHAR(20) NOT NULL, " +
-                "role VARCHAR(20) NOT NULL, " +
-                "status VARCHAR(10) NOT NULL" +
-                ")";
-                
+            "CREATE TABLE IF NOT EXISTS users (" +
+            "username TEXT PRIMARY KEY, " +
+            "password TEXT NOT NULL, " +
+            "phone TEXT NOT NULL, " +
+            "role TEXT NOT NULL, " +
+            "status TEXT NOT NULL" +
+            ")";
+            
             try (Connection conn = getConnection();
-                 Statement stmt = conn.createStatement()) {
-                stmt.execute(createTableSQL);
+             Statement stmt = conn.createStatement()) {
+            stmt.execute(createTableSQL);
+            
+            // 检查是否已有数据
+            try (ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM users")) {
+                rs.next();
+                if (rs.getInt(1) == 0) {
+                String[] insertSQL = {
+                    "INSERT INTO users VALUES ('admin', 'admin123', '13800001111', '管理员', 'active')",
+                    "INSERT INTO users VALUES ('user1', 'user123', '13800002222', '用户', 'active')",
+                    "INSERT INTO users VALUES ('user2', 'user456', '13800003333', '客服', 'inactive')"
+                };
                 
-                // 检查是否已有数据
-                try (ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM users")) {
-                    rs.next();
-                    if (rs.getInt(1) == 0) {
-                        String[] insertSQL = {
-                            "INSERT INTO users VALUES ('admin', 'admin123', '13800001111', '管理员', 'active')",
-                            "INSERT INTO users VALUES ('user1', 'user123', '13800002222', '用户', 'active')",
-                            "INSERT INTO users VALUES ('user2', 'user456', '13800003333', '客服', 'inactive')"
-                        };
-                        
-                        for (String sql : insertSQL) {
-                            stmt.execute(sql);
-                        }
-                        System.out.println("用户数据已初始化");
-                    }
+                for (String sql : insertSQL) {
+                    stmt.execute(sql);
                 }
+                System.out.println("用户数据已初始化");
+                }
+            }
             } catch (SQLException e) {
-                System.err.println("初始化数据库错误: " + e.getMessage());
-                e.printStackTrace();
+            System.err.println("初始化数据库错误: " + e.getMessage());
+            e.printStackTrace();
             }
         }
     }
