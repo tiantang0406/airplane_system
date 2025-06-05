@@ -15,6 +15,14 @@ public class FlightQueryModule {    /**
         static {
             try {
                 Class.forName("org.sqlite.JDBC");
+                // 输出当前工作目录和数据库文件路径
+                System.out.println("当前工作目录: " + System.getProperty("user.dir"));
+                System.out.println("数据库URL: " + DB_URL);
+                
+                // 检查数据库文件是否存在
+                java.io.File dbFile = new java.io.File("airplane_system.db");
+                System.out.println("数据库文件路径: " + dbFile.getAbsolutePath());
+                System.out.println("数据库文件是否存在: " + dbFile.exists());
             } catch (ClassNotFoundException e) {
                 System.err.println("SQLite JDBC Driver not found.");
                 e.printStackTrace();

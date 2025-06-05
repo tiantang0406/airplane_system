@@ -5,11 +5,18 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 public class DatabaseTest {
-    // 修正数据库URL路径
-    private static final String DB_URL = "jdbc:sqlite:/Users/apple/Documents/airplane_system/airplane_system.db";
+    // 使用相对路径
+    private static final String DB_URL = "jdbc:sqlite:airplane_system.db";
     
     public static void main(String[] args) {
         System.out.println("开始测试数据库连接...");
+        System.out.println("当前工作目录: " + System.getProperty("user.dir"));
+        System.out.println("数据库URL: " + DB_URL);
+        
+        // 检查数据库文件是否存在
+        java.io.File dbFile = new java.io.File("airplane_system.db");
+        System.out.println("数据库文件完整路径: " + dbFile.getAbsolutePath());
+        System.out.println("数据库文件是否存在: " + dbFile.exists());
         
         // 测试1: 加载SQLite JDBC驱动
         try {
