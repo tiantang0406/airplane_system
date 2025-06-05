@@ -11,9 +11,8 @@ public class FlightQueryModule {
     
     /**
      * 数据库管理器 - 处理航班查询数据库操作
-     */
-    public static class DatabaseManager {
-        private static final String DB_URL = "jdbc:sqlite:airplane_system.db";
+     */    public static class DatabaseManager {
+        private static final String DB_URL = "jdbc:sqlite:/airplane_system.db";
         
         static {
             try {
@@ -204,8 +203,7 @@ public class FlightQueryModule {
             
             return dates;
         }
-        
-        /**
+          /**
          * 格式化航班显示信息
          */
         public static String formatFlightDisplay(FlightInfo flight, String cabinClass) {
@@ -218,30 +216,142 @@ public class FlightQueryModule {
                 
                 String timeRange = timeFormat.format(depTime) + "-" + timeFormat.format(arrTime);
                 
-                // 根据舱位等级计算价格
-                double price = flight.basePrice;
-                if ("商务舱".equals(cabinClass)) {
-                    price *= 2.5; // 商务舱价格为经济舱的2.5倍
-                }
+                // 根据舱位等级和航班的实际座位配置计算价格
+                double price = calculateCabinPrice(flight, cabinClass);
+                int availableSeats = getAvailableSeatsByCabin(flight, cabinClass);
                 
                 return String.format("%s %s %s ¥%.0f (余票%d) [%s->%s]", 
                     flight.flightNumber,
                     timeRange,
                     cabinClass,
                     price,
-                    flight.availableSeats,
+                    availableSeats,
                     flight.departureAirport,
                     flight.arrivalAirport);
                     
             } catch (java.text.ParseException e) {
                 // 如果解析失败，返回简化格式
+                double price = calculateCabinPrice(flight, cabinClass);
+                int availableSeats = getAvailableSeatsByCabin(flight, cabinClass);
                 return String.format("%s %s %s ¥%.0f (余票%d)", 
                     flight.flightNumber,
                     flight.departureTime.substring(11, 16) + "-" + flight.arrivalTime.substring(11, 16),
                     cabinClass,
-                    flight.basePrice,
-                    flight.availableSeats);
+                    price,
+                    availableSeats);
             }
+        }
+        
+        /**
+         * 根据舱位等级和航班配置计算价格
+         */
+        private static double calculateCabinPrice(FlightInfo flight, String cabinClass) {
+            double basePrice = flight.basePrice;
+            
+            // 根据航班获取座位配置
+            CabinConfiguration config = getFlightCabinConfiguration(flight.aircraftId);
+            
+            if (config == null) {
+                // 如果无法获取配置，使用默认价格倍数
+                if ("头等舱".equals(cabinClass)) {
+                    return basePrice * 4.0;
+                } else if ("商务舱".equals(cabinClass)) {
+                    return basePrice * 2.5;
+                } else {
+                    return basePrice; // 经济舱
+                }
+            }
+            
+            // 根据实际座位稀缺性计算价格
+            if ("头等舱".equals(cabinClass)) {
+                if (config.firstClassSeats > 0) {
+                    // 头等舱价格 = 基础价格 × (总座位数 / 头等舱座位数) × 1.5
+                    return basePrice * ((double)config.totalSeats / config.firstClassSeats) * 1.5;
+                } else {
+                    return 0; // 该航班没有头等舱
+                }
+            } else if ("商务舱".equals(cabinClass)) {
+                if (config.businessClassSeats > 0) {
+                    // 商务舱价格 = 基础价格 × (总座位数 / 商务舱座位数) × 1.2
+                    return basePrice * ((double)config.totalSeats / config.businessClassSeats) * 1.2;
+                } else {
+                    return 0; // 该航班没有商务舱
+                }
+            } else {
+                // 经济舱使用基础价格
+                return basePrice;
+            }
+        }
+        
+        /**
+         * 根据舱位获取可用座位数
+         */
+        private static int getAvailableSeatsByCabin(FlightInfo flight, String cabinClass) {
+            CabinConfiguration config = getFlightCabinConfiguration(flight.aircraftId);
+            
+            if (config == null) {
+                // 如果无法获取配置，返回总可用座位数
+                return flight.availableSeats;
+            }
+            
+            // 简化处理：假设每个舱位的可用座位数按比例分配
+            double totalRatio = config.firstClassSeats + config.businessClassSeats + config.economyClassSeats;
+            
+            if ("头等舱".equals(cabinClass)) {
+                if (config.firstClassSeats > 0) {
+                    return (int)(flight.availableSeats * config.firstClassSeats / totalRatio);
+                } else {
+                    return 0;
+                }
+            } else if ("商务舱".equals(cabinClass)) {
+                if (config.businessClassSeats > 0) {
+                    return (int)(flight.availableSeats * config.businessClassSeats / totalRatio);
+                } else {
+                    return 0;
+                }
+            } else {
+                // 经济舱
+                return (int)(flight.availableSeats * config.economyClassSeats / totalRatio);
+            }
+        }
+        
+        /**
+         * 获取航班的舱位配置
+         */
+        private static CabinConfiguration getFlightCabinConfiguration(String aircraftId) {
+            String sql = "SELECT total_seats, first_class_seats, business_class_seats, economy_class_seats " +
+                        "FROM aircraft WHERE aircraft_id = ?";
+            
+            try (Connection conn = getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setString(1, aircraftId);
+                
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        CabinConfiguration config = new CabinConfiguration();
+                        config.totalSeats = rs.getInt("total_seats");
+                        config.firstClassSeats = rs.getInt("first_class_seats");
+                        config.businessClassSeats = rs.getInt("business_class_seats");
+                        config.economyClassSeats = rs.getInt("economy_class_seats");
+                        return config;
+                    }
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+                System.err.println("获取舱位配置失败: " + e.getMessage());
+            }
+            
+            return null;
+        }
+        
+        /**
+         * 舱位配置类
+         */
+        private static class CabinConfiguration {
+            int totalSeats;
+            int firstClassSeats;
+            int businessClassSeats;
+            int economyClassSeats;
         }
     }
     
@@ -351,9 +461,7 @@ public class FlightQueryModule {
         cabinLabel.setFont(new Font("微软雅黑", Font.PLAIN, 14));
         gbc.gridx = 0;
         gbc.gridy = 4;
-        mainPanel.add(cabinLabel, gbc);
-
-        JComboBox<String> cabinCombo = new JComboBox<>(new String[]{"经济舱", "商务舱"});
+        mainPanel.add(cabinLabel, gbc);        JComboBox<String> cabinCombo = new JComboBox<>(new String[]{"经济舱", "商务舱", "头等舱"});
         cabinCombo.setPreferredSize(new Dimension(200, 25));
         cabinCombo.setSelectedIndex(0); // 默认选中经济舱
         gbc.gridx = 1;
