@@ -3,10 +3,11 @@ import java.awt.*;
 import java.text.SimpleDateFormat;
 
 public class FlightQueryModule {
+    
     public static void main(String[] args) {
         // 创建主窗口
         JFrame frame = new JFrame("航班查询窗口");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         frame.setSize(500, 400);
         frame.setLayout(new BorderLayout());
         frame.getContentPane().setBackground(Color.WHITE);

@@ -20,26 +20,35 @@ public class UserManagementModule extends JFrame {
     private JButton freezeBtn;
     private JButton assignRoleBtn;
     private JTextArea resultArea;
-    
-    /**
+      /**
      * 验证用户身份并返回凭据
      * @param username 用户名
      * @param password 密码
      * @return 验证成功返回用户凭据，失败返回null
      */
     public UserCredential authenticateUser(String username, String password) {
-        User user = USER_DB.get(username);
-        if (user == null) {
-            return null; // 用户不存在
+        // 从数据库获取用户信息（包括密码）
+        String sql = "SELECT * FROM users WHERE username = ?";
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, username);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    String storedPassword = rs.getString("password");
+                    String userStatus = rs.getString("status");
+                    String userRole = rs.getString("role");
+                    
+                    // 验证密码（明文比较）和用户状态
+                    if (password.equals(storedPassword) && "active".equals(userStatus)) {
+                        return new UserCredential(username, userRole);
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
         
-        // 实际系统中应该检查密码哈希
-        // 此处简化为：用户存在且状态为活跃时验证成功
-        if (user.status.equals("active")) {
-            return new UserCredential(user.username, user.role);
-        }
-        
-        return null; // 用户已冻结
+        return null; // 用户不存在、密码错误或用户已冻结
     }
     
     /**
