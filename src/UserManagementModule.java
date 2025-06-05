@@ -109,6 +109,7 @@ public class UserManagementModule extends JFrame {
           /**
          * 添加或更新用户（类似HashMap.put()）
          */
+        @SuppressWarnings("unused")
         public User put(String username, User user) {
             // SQLite 兼容的 UPSERT 语法
             String sql = "INSERT OR REPLACE INTO users (username, password, phone, role, status) VALUES (?, ?, ?, ?, ?)";
