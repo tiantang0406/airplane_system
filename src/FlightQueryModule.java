@@ -167,14 +167,6 @@ public class FlightQueryModule {    /**
             // 如果数据库查询失败，使用备用映射
             java.util.Map<String, String> cityMapping = new java.util.HashMap<>();
             cityMapping.put("北京", "PEK");
-            cityMapping.put("上海", "SHA");
-            cityMapping.put("广州", "CAN");
-            cityMapping.put("深圳", "SZX");
-            cityMapping.put("成都", "CTU");
-            cityMapping.put("杭州", "HGH");
-            cityMapping.put("西安", "XIY");
-            cityMapping.put("重庆", "CKG");
-            cityMapping.put("南京", "NKG");
             
             return cityMapping.getOrDefault(cityName, input);        }        /**
          * 获取数据库中有航班的日期列表（未来30天内）
