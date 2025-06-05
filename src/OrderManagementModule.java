@@ -43,14 +43,27 @@ public class OrderManagementModule extends JFrame {
         public static java.util.List<OrderInfo> getUserOrders(String userId, String statusFilter) {
             java.util.List<OrderInfo> orders = new java.util.ArrayList<>();
             
-            String sql = "SELECT o.order_id, o.user_id, o.flight_id, o.passenger_name, " +
-                        "o.passenger_id, o.seat_number, o.ticket_price, o.booking_time, " +
-                        "o.payment_status, o.order_status, o.payment_method, o.payment_time, " +
-                        "f.flight_number, f.departure_airport, f.arrival_airport, " +
-                        "f.departure_time, f.arrival_time " +
-                        "FROM orders o " +
-                        "JOIN flights f ON o.flight_id = f.flight_id " +
-                        "WHERE o.user_id = ?";
+            // 修改SQL查询以允许客服和管理员查看所有订单
+            String sql;
+            boolean isNormalUser = isNormalUser(userId);
+            if (isNormalUser) {
+                sql = "SELECT o.order_id, o.user_id, o.flight_id, o.passenger_name, " +
+                      "o.passenger_id, o.seat_number, o.ticket_price, o.booking_time, " +
+                      "o.payment_status, o.order_status, o.payment_method, o.payment_time, " +
+                      "f.flight_number, f.departure_airport, f.arrival_airport, " +
+                      "f.departure_time, f.arrival_time " +
+                      "FROM orders o " +
+                      "JOIN flights f ON o.flight_id = f.flight_id " +
+                      "WHERE o.user_id = ?";
+            } else {
+                sql = "SELECT o.order_id, o.user_id, o.flight_id, o.passenger_name, " +
+                      "o.passenger_id, o.seat_number, o.ticket_price, o.booking_time, " +
+                      "o.payment_status, o.order_status, o.payment_method, o.payment_time, " +
+                      "f.flight_number, f.departure_airport, f.arrival_airport, " +
+                      "f.departure_time, f.arrival_time " +
+                      "FROM orders o " +
+                      "JOIN flights f ON o.flight_id = f.flight_id";
+            }
             
             if (statusFilter != null && !"全部".equals(statusFilter)) {
                 // 状态映射：UI显示 -> 数据库值
@@ -64,16 +77,20 @@ public class OrderManagementModule extends JFrame {
             
             try (Connection conn = getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setString(1, userId);
-                
-                int paramIndex = 2;
+                // 如果是普通用户，绑定 userId 参数
+                int paramIndex = 1;
+                if (isNormalUser) {
+                    stmt.setString(paramIndex++, userId);
+                }
+
+                // 如果有状态过滤器，绑定状态参数
                 if (statusFilter != null && !"全部".equals(statusFilter)) {
                     String dbStatus = mapUIStatusToDBStatus(statusFilter);
                     if (dbStatus != null) {
                         stmt.setString(paramIndex, dbStatus);
                     }
                 }
-                
+
                 try (ResultSet rs = stmt.executeQuery()) {
                     while (rs.next()) {
                         OrderInfo order = new OrderInfo();
@@ -94,7 +111,7 @@ public class OrderManagementModule extends JFrame {
                         order.arrivalAirport = rs.getString("arrival_airport");
                         order.departureTime = rs.getString("departure_time");
                         order.arrivalTime = rs.getString("arrival_time");
-                        
+
                         orders.add(order);
                     }
                 }
@@ -162,6 +179,26 @@ public class OrderManagementModule extends JFrame {
                 e.printStackTrace();
                 return false;
             }
+        }
+        
+        /**
+         * 判断用户是否为普通用户
+         */
+        private static boolean isNormalUser(String userId) {
+            String sql = "SELECT role FROM users WHERE username = ?";
+            try (Connection conn = DatabaseManager.getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setString(1, userId);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        String role = rs.getString("role");
+                        return "用户".equals(role);
+                    }
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+            return true; // 默认当作普通用户处理
         }
     }
     
