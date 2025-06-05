@@ -157,22 +157,37 @@ public class RefundModule extends JFrame {
 
         setLocationRelativeTo(null);        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
     }
-    
-    /**
+      /**
      * 从数据库加载订单信息
      */
     private boolean loadOrderFromDatabase() {
-        String sql = "SELECT o.order_id, o.user_id, o.passenger_name, o.ticket_price, o.payment_status, " +
-                    "f.flight_number, f.departure_airport, f.arrival_airport, f.departure_time " +
-                    "FROM orders o " +
-                    "JOIN flights f ON o.flight_id = f.flight_id " +
-                    "WHERE o.order_id = ? AND o.user_id = ? AND o.payment_status = 'paid'";
+        // 根据用户角色决定是否需要用户ID限制
+        String sql;
+        boolean needUserLimit = isNormalUser(currentUser);
+        
+        if (needUserLimit) {
+            // 普通用户只能查看自己的订单
+            sql = "SELECT o.order_id, o.user_id, o.passenger_name, o.ticket_price, o.payment_status, " +
+                  "f.flight_number, f.departure_airport, f.arrival_airport, f.departure_time " +
+                  "FROM orders o " +
+                  "JOIN flights f ON o.flight_id = f.flight_id " +
+                  "WHERE o.order_id = ? AND o.user_id = ? AND o.payment_status = 'paid'";
+        } else {
+            // 客服和管理员可以查看任何订单
+            sql = "SELECT o.order_id, o.user_id, o.passenger_name, o.ticket_price, o.payment_status, " +
+                  "f.flight_number, f.departure_airport, f.arrival_airport, f.departure_time " +
+                  "FROM orders o " +
+                  "JOIN flights f ON o.flight_id = f.flight_id " +
+                  "WHERE o.order_id = ? AND o.payment_status = 'paid'";
+        }
         
         try (Connection conn = DriverManager.getConnection(DB_URL);
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
             stmt.setString(1, orderId);
-            stmt.setString(2, currentUser);
+            if (needUserLimit) {
+                stmt.setString(2, currentUser);
+            }
             
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -286,6 +301,28 @@ public class RefundModule extends JFrame {
         }
     }
 
+    // 判断是否为普通用户（需要权限限制）
+    private boolean isNormalUser(String userId) {
+        // 检查用户角色
+        String sql = "SELECT role FROM users WHERE username = ?";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setString(1, userId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    String role = rs.getString("role");
+                    // 只有角色为"用户"的才需要限制，客服和管理员不需要限制
+                    return "用户".equals(role);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        // 默认当作普通用户处理（安全考虑）
+        return true;
+    }
+
     // 退款结果内部类
     private class RefundResult {
         boolean isRefundable;
@@ -294,6 +331,17 @@ public class RefundModule extends JFrame {
         String departureTime;
         String message;
     }    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> new RefundModule("ORD1001", "user1").setVisible(true));
+        // 测试不同用户角色的权限控制
+        System.out.println("测试退票模块的权限控制:");
+        System.out.println("1. user1 (用户) - 只能查看自己的订单");
+        System.out.println("2. admin (管理员) - 可以查看任何订单");
+        System.out.println("3. user2 (客服) - 可以查看任何订单");
+        
+        SwingUtilities.invokeLater(() -> {
+            // 可以修改这里测试不同用户角色
+            // new RefundModule("ORD1001", "user1").setVisible(true);  // 普通用户
+            // new RefundModule("ORD1001", "admin").setVisible(true);  // 管理员
+            new RefundModule("ORD1001", "user2").setVisible(true);   // 客服
+        });
     }
 }

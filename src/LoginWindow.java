@@ -2,6 +2,11 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
 public class LoginWindow {
     // 显示主菜单的方法
@@ -104,35 +109,10 @@ public class LoginWindow {
                 });
             });            gbc.gridx = 0;
             gbc.gridy = row++;
-            buttonPanel.add(queryBtn, gbc);
-
-            JButton bookingBtn = createMenuButton("订票服务", buttonFont, buttonSize, new Color(156, 39, 176));
+            buttonPanel.add(queryBtn, gbc);            JButton bookingBtn = createMenuButton("订票服务", buttonFont, buttonSize, new Color(156, 39, 176));
             bookingBtn.addActionListener(_ -> {
-                // 简单的订票服务对话框
-                String[] flights = {"FL001 - PEK→SHA - ¥1580", "FL002 - PEK→CAN - ¥890", "FL003 - SHA→SZX - ¥780"};
-                String selectedFlight = (String) JOptionPane.showInputDialog(loginFrame,
-                    "请选择要预订的航班:", "订票服务", JOptionPane.QUESTION_MESSAGE,
-                    null, flights, flights[0]);
-                
-                if (selectedFlight != null) {
-                    String passengerName = JOptionPane.showInputDialog(loginFrame, 
-                        "请输入乘客姓名:", "订票信息", JOptionPane.QUESTION_MESSAGE);
-                    if (passengerName != null && !passengerName.trim().isEmpty()) {
-                        String idCard = JOptionPane.showInputDialog(loginFrame, 
-                            "请输入身份证号:", "订票信息", JOptionPane.QUESTION_MESSAGE);
-                        if (idCard != null && !idCard.trim().isEmpty()) {
-                            String orderId = "ORD" + System.currentTimeMillis();
-                            JOptionPane.showMessageDialog(loginFrame, 
-                                "订票成功！\n" +
-                                "订单号: " + orderId + "\n" +
-                                "航班: " + selectedFlight + "\n" +
-                                "乘客: " + passengerName + "\n" +
-                                "请前往支付完成订单", 
-                                "订票成功", JOptionPane.INFORMATION_MESSAGE);
-                        }
-                    }
-                }
-            });            gbc.gridx = 0;
+                BookingService.openBookingModule(loginFrame, username);
+            });gbc.gridx = 0;
             gbc.gridy = row++;
             buttonPanel.add(bookingBtn, gbc);
 
@@ -216,7 +196,7 @@ public class LoginWindow {
                     "请输入订单号进行改签:", "改签服务", JOptionPane.QUESTION_MESSAGE);
                 if (demoOrderId != null && !demoOrderId.trim().isEmpty()) {
                     loginFrame.setVisible(false); // 隐藏主菜单窗口
-                    RescheduleUpgradeModule rescheduleModule = new RescheduleUpgradeModule(demoOrderId.trim());
+                    RescheduleUpgradeModule rescheduleModule = new RescheduleUpgradeModule(demoOrderId.trim(), username);
                     rescheduleModule.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
                     rescheduleModule.addWindowListener(new java.awt.event.WindowAdapter() {
                         @Override
@@ -387,10 +367,248 @@ public class LoginWindow {
         mainPanel.add(buttonPanel, gbc);
 
         // 添加主面板到窗口
-        frame.add(mainPanel, BorderLayout.CENTER);
-
-        // 居中显示窗口
+        frame.add(mainPanel, BorderLayout.CENTER);        // 居中显示窗口
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
+    }
+}
+
+/**
+ * 订票服务类 - 提供真正的数据库订票功能
+ */
+class BookingService {
+    private static final String DB_URL = "jdbc:sqlite:airplane_system.db";
+    
+    /**
+     * 打开订票模块
+     */
+    public static void openBookingModule(JFrame parentFrame, String username) {
+        JDialog bookingDialog = new JDialog(parentFrame, "订票服务", true);
+        bookingDialog.setSize(600, 500);
+        bookingDialog.setLayout(new BorderLayout());
+        
+        // 主面板
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        
+        // 标题
+        JLabel titleLabel = new JLabel("航班预订", JLabel.CENTER);
+        titleLabel.setFont(new Font("微软雅黑", Font.BOLD, 24));
+        mainPanel.add(titleLabel, BorderLayout.NORTH);
+        
+        // 航班选择面板
+        JPanel flightPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.anchor = GridBagConstraints.WEST;
+        
+        // 航班下拉框
+        gbc.gridx = 0; gbc.gridy = 0;
+        flightPanel.add(new JLabel("选择航班:"), gbc);
+        
+        JComboBox<FlightInfo> flightComboBox = new JComboBox<>();
+        loadAvailableFlights(flightComboBox);
+        gbc.gridx = 1; gbc.gridy = 0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+        flightPanel.add(flightComboBox, gbc);
+        
+        // 乘客信息
+        gbc.gridx = 0; gbc.gridy = 1;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.weightx = 0;
+        flightPanel.add(new JLabel("乘客姓名:"), gbc);
+        
+        JTextField passengerNameField = new JTextField(20);
+        gbc.gridx = 1; gbc.gridy = 1;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+        flightPanel.add(passengerNameField, gbc);
+        
+        gbc.gridx = 0; gbc.gridy = 2;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.weightx = 0;
+        flightPanel.add(new JLabel("身份证号:"), gbc);
+        
+        JTextField idCardField = new JTextField(20);
+        gbc.gridx = 1; gbc.gridy = 2;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+        flightPanel.add(idCardField, gbc);
+        
+        mainPanel.add(flightPanel, BorderLayout.CENTER);
+        
+        // 按钮面板
+        JPanel buttonPanel = new JPanel(new FlowLayout());
+        JButton bookButton = new JButton("预订航班");
+        JButton cancelButton = new JButton("取消");
+        
+        bookButton.addActionListener(e -> {
+            FlightInfo selectedFlight = (FlightInfo) flightComboBox.getSelectedItem();
+            String passengerName = passengerNameField.getText().trim();
+            String idCard = idCardField.getText().trim();
+            
+            if (selectedFlight == null) {
+                JOptionPane.showMessageDialog(bookingDialog, "请选择航班！", "错误", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            
+            if (passengerName.isEmpty()) {
+                JOptionPane.showMessageDialog(bookingDialog, "请输入乘客姓名！", "错误", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            
+            if (idCard.isEmpty()) {
+                JOptionPane.showMessageDialog(bookingDialog, "请输入身份证号！", "错误", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            
+            // 创建订单
+            String orderId = createOrder(username, selectedFlight, passengerName, idCard);
+            if (orderId != null) {
+                JOptionPane.showMessageDialog(bookingDialog, 
+                    "订票成功！\n" +
+                    "订单号: " + orderId + "\n" +
+                    "航班: " + selectedFlight.getDisplayString() + "\n" +
+                    "乘客: " + passengerName + "\n" +
+                    "金额: ¥" + String.format("%.2f", selectedFlight.price) + "\n" +
+                    "请前往'我的订单'完成支付", 
+                    "订票成功", JOptionPane.INFORMATION_MESSAGE);
+                bookingDialog.dispose();
+            } else {
+                JOptionPane.showMessageDialog(bookingDialog, "订票失败，请重试！", "错误", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+        
+        cancelButton.addActionListener(_ -> bookingDialog.dispose());
+        
+        buttonPanel.add(bookButton);
+        buttonPanel.add(cancelButton);
+        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
+        
+        bookingDialog.add(mainPanel);
+        bookingDialog.setLocationRelativeTo(parentFrame);
+        bookingDialog.setVisible(true);
+    }
+    
+    /**
+     * 从数据库加载可用航班
+     */
+    private static void loadAvailableFlights(JComboBox<FlightInfo> comboBox) {
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement stmt = conn.prepareStatement(
+                 "SELECT f.flight_id, f.flight_number, f.base_price, f.available_seats, " +
+                 "f.departure_time, f.arrival_time, " +
+                 "dep.city as departure_city, arr.city as arrival_city " +
+                 "FROM flights f " +
+                 "JOIN airports dep ON f.departure_airport = dep.airport_code " +
+                 "JOIN airports arr ON f.arrival_airport = arr.airport_code " +
+                 "WHERE f.status = 'scheduled' AND f.available_seats > 0 " +
+                 "AND f.departure_time > datetime('now') " +
+                 "ORDER BY f.departure_time")) {
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    FlightInfo flight = new FlightInfo();
+                    flight.flightId = rs.getString("flight_id");
+                    flight.flightNumber = rs.getString("flight_number");
+                    flight.price = rs.getDouble("base_price");
+                    flight.availableSeats = rs.getInt("available_seats");
+                    flight.departureTime = rs.getString("departure_time");
+                    flight.arrivalTime = rs.getString("arrival_time");
+                    flight.departureCity = rs.getString("departure_city");
+                    flight.arrivalCity = rs.getString("arrival_city");
+                    
+                    comboBox.addItem(flight);
+                }
+            }
+            
+            if (comboBox.getItemCount() == 0) {
+                JOptionPane.showMessageDialog(null, "暂无可预订航班", "提示", JOptionPane.INFORMATION_MESSAGE);
+            }
+            
+        } catch (SQLException e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(null, "加载航班信息失败: " + e.getMessage(), "错误", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    
+    /**
+     * 创建订单并保存到数据库
+     */
+    private static String createOrder(String userId, FlightInfo flight, String passengerName, String passengerId) {
+        String orderId = "ORD" + System.currentTimeMillis();
+        
+        String sql = "INSERT INTO orders (order_id, user_id, flight_id, passenger_name, passenger_id, " +
+                    "ticket_price, booking_time, payment_status, order_status) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, datetime('now'), 'pending', 'active')";
+        
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setString(1, orderId);
+            stmt.setString(2, userId);
+            stmt.setString(3, flight.flightId);
+            stmt.setString(4, passengerName);
+            stmt.setString(5, passengerId);
+            stmt.setDouble(6, flight.price);
+            
+            int rowsAffected = stmt.executeUpdate();
+            
+            if (rowsAffected > 0) {
+                // 更新航班可用座位数
+                updateFlightSeats(flight.flightId, -1);
+                System.out.println("订单创建成功: " + orderId);
+                return orderId;
+            }
+            
+        } catch (SQLException e) {
+            e.printStackTrace();
+            System.err.println("创建订单失败: " + e.getMessage());
+        }
+        
+        return null;
+    }
+    
+    /**
+     * 更新航班座位数
+     */
+    private static void updateFlightSeats(String flightId, int seatChange) {
+        String sql = "UPDATE flights SET available_seats = available_seats + ? WHERE flight_id = ?";
+        
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setInt(1, seatChange);
+            stmt.setString(2, flightId);
+            stmt.executeUpdate();
+            
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * 航班信息类
+     */
+    static class FlightInfo {
+        String flightId;
+        String flightNumber;
+        double price;
+        int availableSeats;
+        String departureTime;
+        String arrivalTime;
+        String departureCity;
+        String arrivalCity;
+        
+        public String getDisplayString() {
+            return String.format("%s - %s→%s - ¥%.0f (余票:%d)", 
+                flightNumber, departureCity, arrivalCity, price, availableSeats);
+        }
+        
+        @Override
+        public String toString() {
+            return getDisplayString();
+        }
     }
 }

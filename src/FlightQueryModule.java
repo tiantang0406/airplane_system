@@ -583,11 +583,28 @@ public class FlightQueryModule {    /**
                 resultArea.setText(result.toString());
             }
         });        returnButton.addActionListener(e -> {
-            departureCombo.setSelectedIndex(-1); // 清空选择
-            destinationCombo.setSelectedIndex(-1); // 清空选择
-            dateCombo.setSelectedIndex(-1); // 清空日期选择
-            cabinCombo.setSelectedIndex(0);
-            resultArea.setText("");
+            // 询问用户是要清空输入还是返回主菜单
+            int choice = JOptionPane.showOptionDialog(frame,
+                "请选择操作：",
+                "返回选项",
+                JOptionPane.YES_NO_CANCEL_OPTION,
+                JOptionPane.QUESTION_MESSAGE,
+                null,
+                new String[]{"清空输入", "返回主菜单", "取消"},
+                "清空输入");
+            
+            if (choice == 0) {
+                // 清空输入
+                departureCombo.setSelectedIndex(-1);
+                destinationCombo.setSelectedIndex(-1);
+                dateCombo.setSelectedIndex(-1);
+                cabinCombo.setSelectedIndex(0);
+                resultArea.setText("");
+            } else if (choice == 1) {
+                // 返回主菜单（只关闭当前窗口，不退出程序）
+                frame.dispose();
+            }
+            // choice == 2 或关闭对话框时不做任何操作
         });
 
         frame.setLocationRelativeTo(null);
