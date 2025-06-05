@@ -19,7 +19,7 @@ public class FlightManagementModule extends JFrame {
     // 机型与座位数映射
     private static final Map<String, Integer> AIRCRAFT_SEATS = new HashMap<>();
     static {
-        AIRCRAFT_SEATS.put("A320", 180);
+        AIRCRAFT_SEATS.put("A320", 180); //first data type
         AIRCRAFT_SEATS.put("A330", 290);
         AIRCRAFT_SEATS.put("A350", 350);
         AIRCRAFT_SEATS.put("B737", 160);

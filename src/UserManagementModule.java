@@ -3,6 +3,12 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.util.HashMap;
 import java.util.Map;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 
 public class UserManagementModule extends JFrame {
 
@@ -14,9 +20,275 @@ public class UserManagementModule extends JFrame {
     private JButton freezeBtn;
     private JButton assignRoleBtn;
     private JTextArea resultArea;
-
+    
+    /**
+     * 验证用户身份并返回凭据
+     * @param username 用户名
+     * @param password 密码
+     * @return 验证成功返回用户凭据，失败返回null
+     */
+    public UserCredential authenticateUser(String username, String password) {
+        User user = USER_DB.get(username);
+        if (user == null) {
+            return null; // 用户不存在
+        }
+        
+        // 实际系统中应该检查密码哈希
+        // 此处简化为：用户存在且状态为活跃时验证成功
+        if (user.status.equals("active")) {
+            return new UserCredential(user.username, user.role);
+        }
+        
+        return null; // 用户已冻结
+    }
+    
+    /**
+     * 用户身份凭据类 - 简化版本，只包含用户ID和角色
+     */
+    public static class UserCredential {
+        private final String userId;
+        private final String role;
+        private final long timestamp;
+        
+        public UserCredential(String userId, String role) {
+            this.userId = userId;
+            this.role = role;
+            this.timestamp = System.currentTimeMillis();
+        }
+        
+        public String getUserId() { return userId; }
+        public String getRole() { return role; }
+        public long getTimestamp() { return timestamp; }
+    }
+    /**
+     * 数据库管理类 - 处理用户数据库操作
+     */
+    private static final DatabaseUserManager USER_DB = new DatabaseUserManager();
+    
+    /**
+     * 数据库用户管理器 - 提供类似HashMap的接口
+     */
+    private static class DatabaseUserManager {
+        
+        /**
+         * 根据用户名获取用户（类似HashMap.get()）
+         */
+        public User get(String username) {
+            return DatabaseManager.getUserByUsername(username);
+        }
+        
+        /**
+         * 检查是否包含指定用户名（类似HashMap.containsKey()）
+         */
+        public boolean containsKey(String username) {
+            return get(username) != null;
+        }
+        
+        /**
+         * 获取所有用户值的集合（类似HashMap.values()）
+         */
+        public java.util.Collection<User> values() {
+            java.util.List<User> users = new java.util.ArrayList<>();
+            String sql = "SELECT * FROM users";
+            try (Connection conn = DatabaseManager.getConnection();
+                 Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery(sql)) {
+                while (rs.next()) {
+                    users.add(new User(
+                        rs.getString("username"),
+                        rs.getString("phone"),
+                        rs.getString("role"),
+                        rs.getString("status")
+                    ));
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+            return users;
+        }
+        
+        /**
+         * 添加或更新用户（类似HashMap.put()）
+         */
+        public User put(String username, User user) {
+            String sql = "INSERT INTO users (username, password, phone, role, status) VALUES (?, ?, ?, ?, ?) " +
+                        "ON DUPLICATE KEY UPDATE phone = ?, role = ?, status = ?";
+            try (Connection conn = DatabaseManager.getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setString(1, user.username);
+                stmt.setString(2, "default123"); // 默认密码
+                stmt.setString(3, user.phone);
+                stmt.setString(4, user.role);
+                stmt.setString(5, user.status);
+                stmt.setString(6, user.phone);
+                stmt.setString(7, user.role);
+                stmt.setString(8, user.status);
+                stmt.executeUpdate();
+                return user;
+            } catch (SQLException e) {
+                e.printStackTrace();
+                return null;
+            }
+        }
+    }
+    public static class DatabaseManager {
+        private static final String DB_URL = "jdbc:sqlite:airplane_system.db";
+        
+        static {
+            try {
+            Class.forName("org.sqlite.JDBC");
+            initializeDatabase();
+            } catch (ClassNotFoundException e) {
+            System.err.println("SQLite JDBC Driver not found.");
+            e.printStackTrace();
+            }
+        }
+        
+        /**
+         * 获取数据库连接
+         */
+        public static Connection getConnection() throws SQLException {
+            return DriverManager.getConnection(DB_URL);
+        }
+        
+        /**
+         * 根据用户名查询用户
+         */
+        public static User getUserByUsername(String username) {
+            String sql = "SELECT * FROM users WHERE username = ?";
+            try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, username);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                return new User(
+                    rs.getString("username"),
+                    rs.getString("phone"),
+                    rs.getString("role"),
+                    rs.getString("status")
+                );
+                }
+            }
+            } catch (SQLException e) {
+            e.printStackTrace();
+            }
+            return null;
+        }
+        
+        /**
+         * 根据手机号查询用户
+         */
+        public static User getUserByPhone(String phone) {
+            String sql = "SELECT * FROM users WHERE phone = ?";
+            try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, phone);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                return new User(
+                    rs.getString("username"),
+                    rs.getString("phone"),
+                    rs.getString("role"),
+                    rs.getString("status")
+                );
+                }
+            }
+            } catch (SQLException e) {
+            e.printStackTrace();
+            }
+            return null;
+        }
+        
+        /**
+         * 更新用户角色
+         */
+        public static boolean updateUserRole(String username, String role) {
+            String sql = "UPDATE users SET role = ? WHERE username = ?";
+            try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, role);
+            stmt.setString(2, username);
+            return stmt.executeUpdate() > 0;
+            } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+            }
+        }
+        
+        /**
+         * 更新用户状态（冻结/解冻）
+         */
+        public static boolean updateUserStatus(String username, String status) {
+            String sql = "UPDATE users SET status = ? WHERE username = ?";
+            try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, status);
+            stmt.setString(2, username);
+            return stmt.executeUpdate() > 0;
+            } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+            }
+        }
+        
+        /**
+         * 重置用户密码
+         */
+        public static boolean resetUserPassword(String username, String newPassword) {
+            String sql = "UPDATE users SET password = ? WHERE username = ?";
+            try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, newPassword);
+            stmt.setString(2, username);
+            return stmt.executeUpdate() > 0;
+            } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+            }
+        }
+        
+        /**
+         * 初始化数据库
+         */
+        private static void initializeDatabase() {
+            String createTableSQL = 
+            "CREATE TABLE IF NOT EXISTS users (" +
+            "username TEXT PRIMARY KEY, " +
+            "password TEXT NOT NULL, " +
+            "phone TEXT NOT NULL, " +
+            "role TEXT NOT NULL, " +
+            "status TEXT NOT NULL" +
+            ")";
+            
+            try (Connection conn = getConnection();
+             Statement stmt = conn.createStatement()) {
+            stmt.execute(createTableSQL);
+            
+            // 检查是否已有数据
+            try (ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM users")) {
+                rs.next();
+                if (rs.getInt(1) == 0) {
+                String[] insertSQL = {
+                    "INSERT INTO users VALUES ('admin', 'admin123', '13800001111', '管理员', 'active')",
+                    "INSERT INTO users VALUES ('user1', 'user123', '13800002222', '用户', 'active')",
+                    "INSERT INTO users VALUES ('user2', 'user456', '13800003333', '客服', 'inactive')"
+                };
+                
+                for (String sql : insertSQL) {
+                    stmt.execute(sql);
+                }
+                System.out.println("用户数据已初始化");
+                }
+            }
+            } catch (SQLException e) {
+            System.err.println("初始化数据库错误: " + e.getMessage());
+            e.printStackTrace();
+            }
+        }
+    }
     // 模拟用户数据库
-    private static final Map<String, User> USER_DB = new HashMap<>();
+    // 移除静态用户数据库，改用DatabaseManager
+    // private static final Map<String, User> USER_DB = new HashMap<>();
     static {
         USER_DB.put("admin", new User("admin", "13800001111", "管理员", "active"));
         USER_DB.put("user1", new User("user1", "13800002222", "用户", "active"));
