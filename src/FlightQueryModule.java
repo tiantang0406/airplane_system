@@ -7,12 +7,10 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-public class FlightQueryModule {
-    
-    /**
+public class FlightQueryModule {    /**
      * 数据库管理器 - 处理航班查询数据库操作
      */    public static class DatabaseManager {
-        private static final String DB_URL = "jdbc:sqlite:/airplane_system.db";
+        private static final String DB_URL = "jdbc:sqlite:airplane_system.db";
         
         static {
             try {
