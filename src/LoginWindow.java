@@ -213,14 +213,6 @@ public class LoginWindow {
             buttonPanel.add(rescheduleBtn, gbc);
         }
 
-        // 通用功能按钮
-        JButton profileBtn = createMenuButton("个人信息", buttonFont, buttonSize, new Color(158, 158, 158));
-        profileBtn.addActionListener(e -> {
-            JOptionPane.showMessageDialog(loginFrame, "个人信息功能开发中...", "提示", JOptionPane.INFORMATION_MESSAGE);
-        });
-        gbc.gridx = 0;
-        gbc.gridy = row++;
-        buttonPanel.add(profileBtn, gbc);
 
         // 底部按钮区域
         JPanel bottomPanel = new JPanel(new FlowLayout());
