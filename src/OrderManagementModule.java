@@ -229,7 +229,7 @@ public class OrderManagementModule extends JFrame {
         filterPanel.add(refundBtn);
 
         // 添加事件监听器
-        refreshBtn.addActionListener(e -> loadOrders(null));
+        refreshBtn.addActionListener(_ -> loadOrders(null));
         paymentBtn.addActionListener(this::openPaymentModule);
         refundBtn.addActionListener(this::openRefundModule);        // 订单表格
         String[] columns = {"订单号", "航班号", "出发地", "目的地", "日期", "起飞时间", "降落时间", "状态", "金额"};
@@ -320,18 +320,15 @@ public class OrderManagementModule extends JFrame {
                 "提示", 
                 JOptionPane.INFORMATION_MESSAGE);
         }
-    }    private void openPaymentModule(ActionEvent e) {
-        // 获取选中的订单
+    }    private void openPaymentModule(ActionEvent e) {        // 获取选中的订单
         int selectedRow = orderTable.getSelectedRow();
         if (selectedRow >= 0) {
             String orderId = (String) orderTable.getValueAt(selectedRow, 0);
             String status = (String) orderTable.getValueAt(selectedRow, 7);
-            Double amount = (Double) orderTable.getValueAt(selectedRow, 8);
             
-            if ("待支付".equals(status)) {
-                // 隐藏当前窗口
+            if ("待支付".equals(status)) {// 隐藏当前窗口
                 this.setVisible(false);
-                PaymentModule paymentModule = new PaymentModule(orderId, amount);
+                PaymentModule paymentModule = new PaymentModule(orderId, currentUser);
                 paymentModule.addWindowListener(new java.awt.event.WindowAdapter() {
                     @Override
                     public void windowClosed(java.awt.event.WindowEvent windowEvent) {
@@ -346,9 +343,7 @@ public class OrderManagementModule extends JFrame {
         } else {
             JOptionPane.showMessageDialog(this, "请先选择一个订单！", "提示", JOptionPane.WARNING_MESSAGE);
         }
-    }
-
-    private void openRefundModule(ActionEvent e) {
+    }    private void openRefundModule(ActionEvent e) {
         // 获取选中的订单
         int selectedRow = orderTable.getSelectedRow();
         if (selectedRow >= 0) {
@@ -358,7 +353,7 @@ public class OrderManagementModule extends JFrame {
             if ("已完成".equals(status)) {
                 // 隐藏当前窗口
                 this.setVisible(false);
-                RefundModule refundModule = new RefundModule(orderId);
+                RefundModule refundModule = new RefundModule(orderId, currentUser);
                 refundModule.addWindowListener(new java.awt.event.WindowAdapter() {
                     @Override
                     public void windowClosed(java.awt.event.WindowEvent windowEvent) {

@@ -3,19 +3,42 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.sql.*;
 
 public class RefundModule extends JFrame {
 
+    private static final String DB_URL = "jdbc:sqlite:airplane_system.db";
     private String orderId;
+    private String currentUser;
     private JComboBox<String> flightCombo;
     private JComboBox<String> reasonCombo;
     private JButton checkBtn;
     private JButton confirmBtn;
     private JLabel resultLabel;
     private double refundAmount = 0;
+    
+    // 订单信息
+    private String flightNumber;
+    private String route;
+    private String passengerName;
+    private String departureTime;
+    private double ticketPrice;
 
-    public RefundModule(String orderId) {
+    public RefundModule(String orderId, String currentUser) {
         this.orderId = orderId;
+        this.currentUser = currentUser;
+
+        setTitle("退票申请");
+        setSize(700, 550);
+        setLayout(new BorderLayout());
+        getContentPane().setBackground(Color.WHITE);
+
+        // 加载订单数据
+        if (!loadOrderFromDatabase()) {
+            JOptionPane.showMessageDialog(this, "订单信息加载失败或订单不存在！", "错误", JOptionPane.ERROR_MESSAGE);
+            dispose();
+            return;
+        }
 
         setTitle("退票申请");
         setSize(700, 550); // 增大窗口尺寸以适应更大的字体
@@ -46,10 +69,8 @@ public class RefundModule extends JFrame {
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.gridwidth = 2;
-        mainPanel.add(titleLabel, gbc);
-
-        // 选择航班
-        JLabel flightLabel = new JLabel("选择航班:");
+        mainPanel.add(titleLabel, gbc);        // 选择航班
+        JLabel flightLabel = new JLabel("航班信息:");
         flightLabel.setFont(largerFont);
         gbc.gridx = 0;
         gbc.gridy = 1;
@@ -57,11 +78,12 @@ public class RefundModule extends JFrame {
         gbc.anchor = GridBagConstraints.WEST;
         mainPanel.add(flightLabel, gbc);
 
-        flightCombo = new JComboBox<>(new String[]{"MU5112 北京-上海 2023-06-15",
-                "CA1833 广州-成都 2023-06-20",
-                "CZ3108 深圳-重庆 2023-06-25"});
+        // 显示真实的航班信息
+        String flightInfo = String.format("%s %s %s", flightNumber, route, departureTime.substring(0, 10));
+        flightCombo = new JComboBox<>(new String[]{flightInfo});
         flightCombo.setFont(largerFont);
-        flightCombo.setPreferredSize(new Dimension(300, 35)); // 增大下拉框
+        flightCombo.setPreferredSize(new Dimension(350, 35));
+        flightCombo.setEnabled(false); // 不允许选择，只显示信息
         gbc.gridx = 1;
         gbc.gridy = 1;
         mainPanel.add(flightCombo, gbc);
@@ -131,29 +153,56 @@ public class RefundModule extends JFrame {
         // 事件处理
         checkBtn.addActionListener(this::checkRefundPolicy);
         confirmBtn.addActionListener(this::processRefund);
-        cancelBtn.addActionListener(e -> dispose());
+        cancelBtn.addActionListener(_ -> dispose());
 
-        setLocationRelativeTo(null);
-        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        setLocationRelativeTo(null);        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
     }
-
-    private void checkRefundPolicy(ActionEvent e) {
-        String selectedFlight = (String) flightCombo.getSelectedItem();
+    
+    /**
+     * 从数据库加载订单信息
+     */
+    private boolean loadOrderFromDatabase() {
+        String sql = "SELECT o.order_id, o.user_id, o.passenger_name, o.ticket_price, o.payment_status, " +
+                    "f.flight_number, f.departure_airport, f.arrival_airport, f.departure_time " +
+                    "FROM orders o " +
+                    "JOIN flights f ON o.flight_id = f.flight_id " +
+                    "WHERE o.order_id = ? AND o.user_id = ? AND o.payment_status = 'paid'";
+        
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setString(1, orderId);
+            stmt.setString(2, currentUser);
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    passengerName = rs.getString("passenger_name");
+                    ticketPrice = rs.getDouble("ticket_price");
+                    flightNumber = rs.getString("flight_number");
+                    String departureAirport = rs.getString("departure_airport");
+                    String arrivalAirport = rs.getString("arrival_airport");
+                    route = departureAirport + "→" + arrivalAirport;
+                    departureTime = rs.getString("departure_time");
+                    return true;
+                } else {
+                    return false; // 订单不存在或不属于当前用户或状态不是已支付
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }    private void checkRefundPolicy(ActionEvent e) {
         String reason = (String) reasonCombo.getSelectedItem();
 
-        if (selectedFlight == null || selectedFlight.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "请选择要退票的航班", "提示", JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-
-        // 模拟检查退票规则
-        RefundResult result = simulateCheckRefundPolicy(orderId, selectedFlight);
+        // 使用真实的航班信息检查退票规则
+        RefundResult result = checkRefundPolicyFromDatabase(orderId);
 
         if (result.isRefundable) {
             refundAmount = result.amount;
             resultLabel.setText(String.format(
-                    "<html><center>航班: %s<br>退票原因: %s<br>可退金额: <b>¥%.2f</b><br>手续费: ¥%.2f<br>起飞时间: %s</center></html>",
-                    selectedFlight, reason, result.amount, result.fee, result.departureTime));
+                    "<html><center>订单号: %s<br>乘客: %s<br>航班: %s %s<br>退票原因: %s<br>可退金额: <b>¥%.2f</b><br>手续费: ¥%.2f<br>起飞时间: %s</center></html>",
+                    orderId, passengerName, flightNumber, route, reason, result.amount, result.fee, result.departureTime));
             resultLabel.setForeground(new Color(0, 100, 0)); // 深绿色
             confirmBtn.setEnabled(true);
         } else {
@@ -161,20 +210,17 @@ public class RefundModule extends JFrame {
             resultLabel.setForeground(Color.RED);
             confirmBtn.setEnabled(false);
         }
-    }
-
-    private void processRefund(ActionEvent e) {
-        String selectedFlight = (String) flightCombo.getSelectedItem();
+    }    private void processRefund(ActionEvent e) {
         String reason = (String) reasonCombo.getSelectedItem();
 
         int confirm = JOptionPane.showConfirmDialog(this,
-                String.format("<html><center>确认退票?<br>航班: %s<br>退票原因: %s<br>退款金额: ¥%.2f</center></html>",
-                        selectedFlight, reason, refundAmount),
+                String.format("<html><center>确认退票?<br>订单号: %s<br>乘客: %s<br>航班: %s %s<br>退票原因: %s<br>退款金额: ¥%.2f</center></html>",
+                        orderId, passengerName, flightNumber, route, reason, refundAmount),
                 "确认退票", JOptionPane.YES_NO_OPTION);
 
         if (confirm == JOptionPane.YES_OPTION) {
-            // 模拟退款处理
-            boolean success = simulateProcessRefund(orderId, refundAmount);
+            // 处理退款
+            boolean success = processRefundInDatabase(orderId, refundAmount, reason);
 
             if (success) {
                 JOptionPane.showMessageDialog(this,
@@ -186,41 +232,30 @@ public class RefundModule extends JFrame {
                         "退款处理失败，请稍后重试", "错误", JOptionPane.ERROR_MESSAGE);
             }
         }
-    }
-
-    // 模拟检查退票规则
-    private RefundResult simulateCheckRefundPolicy(String orderId, String flightInfo) {
+    }    // 检查退票规则
+    private RefundResult checkRefundPolicyFromDatabase(String orderId) {
         RefundResult result = new RefundResult();
 
-        // 从航班信息中提取日期
-        String flightDateStr = flightInfo.substring(flightInfo.length() - 10);
-
         try {
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
             Date now = new Date();
-            Date departure = sdf.parse(flightDateStr);
+            Date departure = sdf.parse(departureTime);
 
             long diffHours = (departure.getTime() - now.getTime()) / (60 * 60 * 1000);
-
-            // 根据航班设置不同票价
-            double ticketPrice = 1000.00; // 默认
-            if (flightInfo.contains("MU5112")) ticketPrice = 1200.00;
-            else if (flightInfo.contains("CA1833")) ticketPrice = 1500.00;
-            else if (flightInfo.contains("CZ3108")) ticketPrice = 900.00;
 
             if (diffHours > 24) {
                 // 起飞前24小时以上可全额退款
                 result.isRefundable = true;
                 result.amount = ticketPrice;
                 result.fee = 0.00;
-                result.departureTime = flightDateStr + " 14:00";
+                result.departureTime = departureTime.substring(0, 16);
                 result.message = "起飞前24小时以上可全额退款";
             } else if (diffHours > 2) {
                 // 起飞前2-24小时收取20%手续费
                 result.isRefundable = true;
                 result.amount = ticketPrice * 0.8;
                 result.fee = ticketPrice * 0.2;
-                result.departureTime = flightDateStr + " 14:00";
+                result.departureTime = departureTime.substring(0, 16);
                 result.message = "起飞前2-24小时收取20%手续费";
             } else {
                 result.isRefundable = false;
@@ -234,11 +269,21 @@ public class RefundModule extends JFrame {
         return result;
     }
 
-    // 模拟退款处理
-    private boolean simulateProcessRefund(String orderId, double amount) {
-        System.out.println("处理退款 - 订单: " + orderId + ", 金额: " + amount);
-        // 实际应调用支付系统退款接口
-        return true; // 模拟总是成功
+    // 在数据库中处理退款
+    private boolean processRefundInDatabase(String orderId, double amount, String reason) {
+        String sql = "UPDATE orders SET payment_status = 'refunded', order_status = 'refunded' WHERE order_id = ?";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            stmt.setString(1, orderId);
+            int rowsAffected = stmt.executeUpdate();
+            
+            System.out.println("退款处理 - 订单: " + orderId + ", 金额: " + amount + ", 原因: " + reason);
+            return rowsAffected > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 
     // 退款结果内部类
@@ -248,9 +293,7 @@ public class RefundModule extends JFrame {
         double fee;
         String departureTime;
         String message;
-    }
-
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> new RefundModule("ORD1001").setVisible(true));
+    }    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> new RefundModule("ORD1001", "user1").setVisible(true));
     }
 }

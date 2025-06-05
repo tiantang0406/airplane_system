@@ -41,7 +41,7 @@ public class LoginWindow {
         if ("管理员".equals(role)) {
             // 管理员功能
             JButton userMgmtBtn = createMenuButton("用户管理", buttonFont, buttonSize, new Color(76, 175, 80));
-            userMgmtBtn.addActionListener(e -> {
+            userMgmtBtn.addActionListener(_ -> {
                 loginFrame.setVisible(false); // 隐藏主菜单窗口
                 UserManagementModule userModule = new UserManagementModule();
                 userModule.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
@@ -52,11 +52,12 @@ public class LoginWindow {
                     }
                 });
                 userModule.setVisible(true);
-            });
-            gbc.gridx = 0;
+            });            gbc.gridx = 0;
             gbc.gridy = row++;
-            buttonPanel.add(userMgmtBtn, gbc);            JButton flightMgmtBtn = createMenuButton("航班管理", buttonFont, buttonSize, new Color(33, 150, 243));
-            flightMgmtBtn.addActionListener(e -> {
+            buttonPanel.add(userMgmtBtn, gbc);
+
+            JButton flightMgmtBtn = createMenuButton("航班管理", buttonFont, buttonSize, new Color(33, 150, 243));
+            flightMgmtBtn.addActionListener(_ -> {
                 loginFrame.setVisible(false); // 隐藏主菜单窗口
                 FlightManagementModule flightModule = new FlightManagementModule();
                 flightModule.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
@@ -67,13 +68,13 @@ public class LoginWindow {
                     }
                 });
                 flightModule.setVisible(true);
-            });
-            gbc.gridx = 0;
+            });            gbc.gridx = 0;
             gbc.gridy = row++;
-            buttonPanel.add(flightMgmtBtn, gbc);} else if ("用户".equals(role)) {
+            buttonPanel.add(flightMgmtBtn, gbc);
+        } else if ("用户".equals(role)) {
             // 普通用户功能
             JButton queryBtn = createMenuButton("航班查询", buttonFont, buttonSize, new Color(33, 150, 243));
-            queryBtn.addActionListener(e -> {
+            queryBtn.addActionListener(_ -> {
                 loginFrame.setVisible(false); // 隐藏主菜单窗口
                 // 创建一个新的Frame来包装FlightQueryModule
                 JFrame queryFrame = new JFrame("航班查询");
@@ -101,11 +102,12 @@ public class LoginWindow {
                         }
                     }
                 });
-            });
-            gbc.gridx = 0;
+            });            gbc.gridx = 0;
             gbc.gridy = row++;
-            buttonPanel.add(queryBtn, gbc);            JButton bookingBtn = createMenuButton("订票服务", buttonFont, buttonSize, new Color(156, 39, 176));
-            bookingBtn.addActionListener(e -> {
+            buttonPanel.add(queryBtn, gbc);
+
+            JButton bookingBtn = createMenuButton("订票服务", buttonFont, buttonSize, new Color(156, 39, 176));
+            bookingBtn.addActionListener(_ -> {
                 // 简单的订票服务对话框
                 String[] flights = {"FL001 - PEK→SHA - ¥1580", "FL002 - PEK→CAN - ¥890", "FL003 - SHA→SZX - ¥780"};
                 String selectedFlight = (String) JOptionPane.showInputDialog(loginFrame,
@@ -130,17 +132,34 @@ public class LoginWindow {
                         }
                     }
                 }
+            });            gbc.gridx = 0;
+            gbc.gridy = row++;
+            buttonPanel.add(bookingBtn, gbc);
+
+            // 我的订单
+            JButton orderBtn = createMenuButton("我的订单", buttonFont, buttonSize, new Color(33, 150, 243));
+            orderBtn.addActionListener(_ -> {
+                loginFrame.setVisible(false); // 隐藏主菜单窗口
+                OrderManagementModule orderModule = new OrderManagementModule(username);
+                orderModule.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+                orderModule.addWindowListener(new java.awt.event.WindowAdapter() {
+                    @Override
+                    public void windowClosed(java.awt.event.WindowEvent windowEvent) {
+                        loginFrame.setVisible(true); // 返回主菜单
+                    }
+                });
+                orderModule.setVisible(true);
             });
             gbc.gridx = 0;
             gbc.gridy = row++;
-            buttonPanel.add(bookingBtn, gbc);JButton seatBtn = createMenuButton("选座服务", buttonFont, buttonSize, new Color(255, 152, 0));
-            seatBtn.addActionListener(e -> {
+            buttonPanel.add(orderBtn, gbc);            JButton seatBtn = createMenuButton("选座服务", buttonFont, buttonSize, new Color(255, 152, 0));
+            seatBtn.addActionListener(_ -> {
                 // 为了演示，这里使用示例订单ID
                 String demoOrderId = JOptionPane.showInputDialog(loginFrame, 
                     "请输入订单号进行选座:", "选座服务", JOptionPane.QUESTION_MESSAGE);
                 if (demoOrderId != null && !demoOrderId.trim().isEmpty()) {
                     loginFrame.setVisible(false); // 隐藏主菜单窗口
-                    SeatSelectionModule seatModule = new SeatSelectionModule(demoOrderId.trim());
+                    SeatSelectionModule seatModule = new SeatSelectionModule(demoOrderId.trim(), username);
                     seatModule.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
                     seatModule.addWindowListener(new java.awt.event.WindowAdapter() {
                         @Override
@@ -153,10 +172,10 @@ public class LoginWindow {
             });
             gbc.gridx = 0;
             gbc.gridy = row++;
-            buttonPanel.add(seatBtn, gbc);} else if ("客服".equals(role)) {
+            buttonPanel.add(seatBtn, gbc);        } else if ("客服".equals(role)) {
             // 客服功能
             JButton orderMgmtBtn = createMenuButton("订单管理", buttonFont, buttonSize, new Color(76, 175, 80));
-            orderMgmtBtn.addActionListener(e -> {
+            orderMgmtBtn.addActionListener(_ -> {
                 loginFrame.setVisible(false); // 隐藏主菜单窗口
                 OrderManagementModule orderModule = new OrderManagementModule(username);
                 orderModule.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
@@ -171,13 +190,13 @@ public class LoginWindow {
             gbc.gridx = 0;
             gbc.gridy = row++;
             buttonPanel.add(orderMgmtBtn, gbc);            JButton refundBtn = createMenuButton("退票服务", buttonFont, buttonSize, new Color(244, 67, 54));
-            refundBtn.addActionListener(e -> {
+            refundBtn.addActionListener(_ -> {
                 // 为了演示，这里使用示例订单ID
                 String demoOrderId = JOptionPane.showInputDialog(loginFrame, 
                     "请输入订单号进行退票:", "退票服务", JOptionPane.QUESTION_MESSAGE);
                 if (demoOrderId != null && !demoOrderId.trim().isEmpty()) {
                     loginFrame.setVisible(false); // 隐藏主菜单窗口
-                    RefundModule refundModule = new RefundModule(demoOrderId.trim());
+                    RefundModule refundModule = new RefundModule(demoOrderId.trim(), username);
                     refundModule.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
                     refundModule.addWindowListener(new java.awt.event.WindowAdapter() {
                         @Override
@@ -191,7 +210,7 @@ public class LoginWindow {
             gbc.gridx = 0;
             gbc.gridy = row++;
             buttonPanel.add(refundBtn, gbc);            JButton rescheduleBtn = createMenuButton("改签服务", buttonFont, buttonSize, new Color(255, 193, 7));
-            rescheduleBtn.addActionListener(e -> {
+            rescheduleBtn.addActionListener(_ -> {
                 // 为了演示，这里使用示例订单ID
                 String demoOrderId = JOptionPane.showInputDialog(loginFrame, 
                     "请输入订单号进行改签:", "改签服务", JOptionPane.QUESTION_MESSAGE);
@@ -223,8 +242,7 @@ public class LoginWindow {
         logoutBtn.setPreferredSize(new Dimension(120, 35));
         logoutBtn.setBackground(new Color(244, 67, 54));
         logoutBtn.setForeground(Color.WHITE);
-        logoutBtn.setFocusPainted(false);
-        logoutBtn.addActionListener(e -> {
+        logoutBtn.setFocusPainted(false);        logoutBtn.addActionListener(_ -> {
             int choice = JOptionPane.showConfirmDialog(loginFrame, "确定要退出登录吗？", "确认", JOptionPane.YES_NO_OPTION);
             if (choice == JOptionPane.YES_OPTION) {
                 loginFrame.dispose();
