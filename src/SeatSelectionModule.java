@@ -73,11 +73,26 @@ public class SeatSelectionModule extends JFrame {
         // 座位图面板 - 使用GridLayout
         seatMapPanel = new JPanel(new GridLayout(0, 12, 5, 5)); // 12列
         seatMapPanel.setBackground(Color.WHITE);
-        seatMapPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-
-        // 底部确认面板
-        JPanel confirmPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
+        seatMapPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));        // 底部确认面板
+        JPanel confirmPanel = new JPanel(new BorderLayout());
         confirmPanel.setBackground(Color.WHITE);
+        
+        // 座位图例面板
+        JPanel legendPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        legendPanel.setBackground(Color.WHITE);
+        legendPanel.setBorder(BorderFactory.createTitledBorder("座位图例"));
+        
+        // 创建图例项
+        addLegendItem(legendPanel, "头等舱", new Color(255, 248, 220));
+        addLegendItem(legendPanel, "商务舱", new Color(245, 245, 245));
+        addLegendItem(legendPanel, "经济舱", new Color(240, 248, 255));
+        addLegendItem(legendPanel, "已选择", Color.CYAN);
+        addLegendItem(legendPanel, "已占用", Color.RED);
+        addLegendItem(legendPanel, "安全出口", Color.ORANGE);
+        
+        // 按钮面板
+        JPanel buttonSubPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
+        buttonSubPanel.setBackground(Color.WHITE);
 
         confirmBtn = new JButton("确认选座");
         confirmBtn.setFont(largerFont);
@@ -86,8 +101,11 @@ public class SeatSelectionModule extends JFrame {
         JButton cancelBtn = new JButton("取消");
         cancelBtn.setFont(largerFont);
 
-        confirmPanel.add(confirmBtn);
-        confirmPanel.add(cancelBtn);
+        buttonSubPanel.add(confirmBtn);
+        buttonSubPanel.add(cancelBtn);
+        
+        confirmPanel.add(legendPanel, BorderLayout.NORTH);
+        confirmPanel.add(buttonSubPanel, BorderLayout.CENTER);
 
         // 组装界面
         add(inputPanel, BorderLayout.NORTH);
@@ -155,20 +173,20 @@ public class SeatSelectionModule extends JFrame {
         confirmBtn.setEnabled(false);
 
         // 从数据库获取座位占用情况
-        String[][] seatMap = getSeatMapFromDatabase(flightId, preference);
-
-        // 显示座位图
+        String[][] seatMap = getSeatMapFromDatabase(flightId, preference);        // 显示座位图
         for (int i = 0; i < seatMap.length; i++) {
             for (int j = 0; j < seatMap[i].length; j++) {
                 String seat = seatMap[i][j];
                 JButton seatBtn = new JButton();
-                seatBtn.setFont(new Font("微软雅黑", Font.PLAIN, 14));
+                seatBtn.setFont(new Font("微软雅黑", Font.PLAIN, 12));
                 seatBtn.setPreferredSize(new Dimension(70, 40));
+                seatBtn.setBorder(BorderFactory.createRaisedBevelBorder());
 
                 // 处理特殊区域
                 if (seat.equals("EXIT")) {
                     seatBtn.setText("安全出口");
                     seatBtn.setBackground(Color.ORANGE);
+                    seatBtn.setForeground(Color.WHITE);
                     seatBtn.setEnabled(false);
                 }
                 else if (seat.equals("AISLE")) {
@@ -191,17 +209,61 @@ public class SeatSelectionModule extends JFrame {
                     seatBtn.setEnabled(false);
                     seatBtn.setBackground(Color.LIGHT_GRAY);
                 }
-                else if (seat.startsWith("O")) {
-                    String seatNumber = seat.substring(1); // 提取座位号
+                else if (seat.equals("FIRST_CLASS")) {
+                    seatBtn.setText("头等舱");
+                    seatBtn.setBackground(new Color(255, 215, 0)); // 金色
+                    seatBtn.setForeground(Color.BLACK);
+                    seatBtn.setEnabled(false);
+                }
+                else if (seat.equals("BUSINESS_CLASS")) {
+                    seatBtn.setText("商务舱");
+                    seatBtn.setBackground(new Color(192, 192, 192)); // 银色
+                    seatBtn.setForeground(Color.BLACK);
+                    seatBtn.setEnabled(false);
+                }
+                else if (seat.equals("ECONOMY_CLASS")) {
+                    seatBtn.setText("经济舱");
+                    seatBtn.setBackground(new Color(135, 206, 235)); // 天蓝色
+                    seatBtn.setForeground(Color.BLACK);
+                    seatBtn.setEnabled(false);
+                }
+                else if (seat.equals("DIVIDER")) {
+                    seatBtn.setText("═══");
+                    seatBtn.setBackground(Color.GRAY);
+                    seatBtn.setEnabled(false);
+                }
+                // 头等舱座位 (可选择)
+                else if (seat.startsWith("F") && !seat.startsWith("X")) {
+                    String seatNumber = seat;
                     seatBtn.setText(seatNumber);
-                    seatBtn.setBackground(Color.WHITE);
+                    seatBtn.setBackground(new Color(255, 248, 220)); // 头等舱浅金色
+                    seatBtn.setForeground(Color.BLACK);
                     seatBtn.addActionListener(_ -> selectSeat(seatBtn));
                 }
+                // 商务舱座位 (可选择)
+                else if (seat.startsWith("B") && !seat.startsWith("X")) {
+                    String seatNumber = seat;
+                    seatBtn.setText(seatNumber);
+                    seatBtn.setBackground(new Color(245, 245, 245)); // 商务舱浅银色
+                    seatBtn.setForeground(Color.BLACK);
+                    seatBtn.addActionListener(_ -> selectSeat(seatBtn));
+                }
+                // 经济舱座位 (可选择)
+                else if (seat.startsWith("E") && !seat.startsWith("X")) {
+                    String seatNumber = seat;
+                    seatBtn.setText(seatNumber);
+                    seatBtn.setBackground(new Color(240, 248, 255)); // 经济舱浅蓝色
+                    seatBtn.setForeground(Color.BLACK);
+                    seatBtn.addActionListener(_ -> selectSeat(seatBtn));
+                }
+                // 已占用的座位 (红色显示)
                 else if (seat.startsWith("X")) {
                     String seatNumber = seat.substring(1); // 提取座位号
                     seatBtn.setText(seatNumber);
-                    seatBtn.setBackground(Color.RED); // 已占用显示红色
+                    seatBtn.setBackground(Color.RED);
+                    seatBtn.setForeground(Color.WHITE);
                     seatBtn.setEnabled(false);
+                    seatBtn.setToolTipText("座位已被占用");
                 }
                 else {
                     seatBtn.setText(seat);
@@ -216,21 +278,40 @@ public class SeatSelectionModule extends JFrame {
 
         seatMapPanel.revalidate();
         seatMapPanel.repaint();
-    }
-
-    private void selectSeat(JButton seatBtn) {
-        // 重置所有座位按钮颜色
+    }    private void selectSeat(JButton seatBtn) {
+        // 重置所有座位按钮颜色到原始状态
         seatButtons.values().forEach(btn -> {
-            if (btn.isEnabled() && !btn.getText().matches("安全出口|过道|洗手间|窗户")) {
-                btn.setBackground(Color.WHITE);
+            if (btn.isEnabled() && !btn.getText().matches("安全出口|过道|洗手间|窗户|头等舱|商务舱|经济舱|═══")) {
+                String seatText = btn.getText();
+                // 根据座位类型恢复原始颜色
+                if (seatText.startsWith("F")) {
+                    btn.setBackground(new Color(255, 248, 220)); // 头等舱浅金色
+                } else if (seatText.startsWith("B")) {
+                    btn.setBackground(new Color(245, 245, 245)); // 商务舱浅银色
+                } else if (seatText.startsWith("E")) {
+                    btn.setBackground(new Color(240, 248, 255)); // 经济舱浅蓝色
+                }
+                btn.setForeground(Color.BLACK);
             }
         });
 
-        // 设置选中座位
+        // 设置选中座位为青色高亮
         selectedSeat = seatBtn.getText();
         seatBtn.setBackground(Color.CYAN);
+        seatBtn.setForeground(Color.BLACK);
         confirmBtn.setEnabled(true);
-    }    private void confirmSelection(ActionEvent e) {
+        
+        // 显示座位信息
+        String seatClass = "";
+        if (selectedSeat.startsWith("F")) {
+            seatClass = "头等舱";
+        } else if (selectedSeat.startsWith("B")) {
+            seatClass = "商务舱";
+        } else if (selectedSeat.startsWith("E")) {
+            seatClass = "经济舱";
+        }
+        seatBtn.setToolTipText("已选择: " + seatClass + " " + selectedSeat);
+    }private void confirmSelection(ActionEvent e) {
         if (selectedSeat != null) {
             // 更新数据库中的座位信息
             boolean success = updateSeatInDatabase(orderId, selectedSeat);
@@ -247,27 +328,31 @@ public class SeatSelectionModule extends JFrame {
                         "选座失败，请重试", "错误", JOptionPane.ERROR_MESSAGE);
             }
         }
-    }
-
-    /**
+    }    /**
      * 从数据库获取座位图，包含已占用的座位信息
      */
     private String[][] getSeatMapFromDatabase(String flightId, String preference) {
-        // 基础座位图布局
+        // 基础座位图布局 - 包含不同舱位等级
+        // F = 头等舱 (First Class), B = 商务舱 (Business Class), E = 经济舱 (Economy Class)
         String[][] seatMap = {
+                {"EMPTY","FIRST_CLASS", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "FIRST_CLASS", "EMPTY"},
+                {"WINDOW","F1A",  "F1B", "AISLE", "F1C", "F1D", "EMPTY", "EMPTY", "AISLE",  "F1E", "F1F", "WINDOW"},
+                {"WINDOW","F2A",  "F2B", "AISLE", "F2C", "F2D", "EMPTY", "EMPTY", "AISLE",  "F2E", "F2F", "WINDOW"},
+                {"EMPTY","DIVIDER", "DIVIDER", "DIVIDER", "DIVIDER", "DIVIDER", "DIVIDER", "DIVIDER", "DIVIDER", "DIVIDER", "DIVIDER", "EMPTY"},
+                {"EMPTY","BUSINESS_CLASS", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "BUSINESS_CLASS", "EMPTY"},
+                {"WINDOW","B3A",  "B3B", "AISLE", "B3C", "B3D", "B3E", "B3F","AISLE",  "B3G", "B3H", "WINDOW"},
+                {"WINDOW","B4A",  "B4B", "AISLE", "B4C", "B4D", "B4E", "B4F","AISLE",  "B4G", "B4H", "WINDOW"},
+                {"WINDOW","B5A",  "B5B", "AISLE", "B5C", "B5D", "B5E", "B5F","AISLE",  "B5G", "B5H", "WINDOW"},
                 {"EMPTY","EXIT",  "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EXIT", "EMPTY"},
-                {"WINDOW","O1A",  "O1B", "AISLE", "O1C", "O1D", "O1E", "O1F","AISLE",  "O1G", "O1H", "WINDOW"},
-                {"WINDOW","O2A",  "O2B", "AISLE", "O2C", "O2D", "O2E", "O2F","AISLE",  "O2G", "O2H", "WINDOW"},
-                {"WINDOW","O3A",  "O3B", "AISLE", "O3C", "O3D", "O3E", "O3F","AISLE",  "O3G", "O3H", "WINDOW"},
-                {"WINDOW","O4A",  "O4B", "AISLE", "O4C", "O4D", "O4E", "O4F","AISLE",  "O4G", "O4H", "WINDOW"},
-                {"WINDOW","O5A",  "O5B", "AISLE", "O5C", "O5D", "O5E", "O5F","AISLE",  "O5G", "O5H", "WINDOW"},
-                {"WINDOW","O6A",  "O6B", "AISLE", "O6C", "O6D", "O6E", "O6F","AISLE",  "O6G", "O6H", "WINDOW"},
-                {"WINDOW","O7A",  "O7B", "AISLE", "O7C", "O7D", "O7E", "O7F","AISLE",  "O7G", "O7H", "WINDOW"},
+                {"EMPTY","ECONOMY_CLASS", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "ECONOMY_CLASS", "EMPTY"},
+                {"WINDOW","E6A",  "E6B", "AISLE", "E6C", "E6D", "E6E", "E6F","AISLE",  "E6G", "E6H", "WINDOW"},
+                {"WINDOW","E7A",  "E7B", "AISLE", "E7C", "E7D", "E7E", "E7F","AISLE",  "E7G", "E7H", "WINDOW"},
+                {"WINDOW","E8A",  "E8B", "AISLE", "E8C", "E8D", "E8E", "E8F","AISLE",  "E8G", "E8H", "WINDOW"},
+                {"WINDOW","E9A",  "E9B", "AISLE", "E9C", "E9D", "E9E", "E9F","AISLE",  "E9G", "E9H", "WINDOW"},
+                {"WINDOW","E10A", "E10B", "AISLE", "E10C", "E10D", "E10E", "E10F","AISLE", "E10G", "E10H", "WINDOW"},
                 {"EMPTY","EXIT",  "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EXIT", "EMPTY"},
                 {"EMPTY","TOILET",  "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "EMPTY", "TOILET", "EMPTY"}
-        };
-
-        // 从数据库获取已占用的座位
+        };        // 从数据库获取已占用的座位
         String sql = "SELECT seat_number FROM orders WHERE flight_id = ? AND seat_number IS NOT NULL AND seat_number != ''";
         try (Connection conn = DriverManager.getConnection(DB_URL);
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -281,7 +366,7 @@ public class SeatSelectionModule extends JFrame {
                     // 将已占用的座位标记为 X + 座位号
                     for (int i = 0; i < seatMap.length; i++) {
                         for (int j = 0; j < seatMap[i].length; j++) {
-                            if (seatMap[i][j].equals("O" + occupiedSeat)) {
+                            if (seatMap[i][j].equals(occupiedSeat)) {
                                 seatMap[i][j] = "X" + occupiedSeat;
                                 break;
                             }
@@ -294,6 +379,21 @@ public class SeatSelectionModule extends JFrame {
         }
 
         return seatMap;
+    }    /**
+     * 添加图例项到面板
+     */
+    private void addLegendItem(JPanel panel, String text, Color color) {
+        JLabel colorBox = new JLabel("  ");
+        colorBox.setOpaque(true);
+        colorBox.setBackground(color);
+        colorBox.setBorder(BorderFactory.createLineBorder(Color.BLACK));
+        colorBox.setPreferredSize(new Dimension(20, 20));
+        
+        JLabel textLabel = new JLabel(text);
+        textLabel.setFont(new Font("微软雅黑", Font.PLAIN, 12));
+        
+        panel.add(colorBox);
+        panel.add(textLabel);
     }
 
     /**
