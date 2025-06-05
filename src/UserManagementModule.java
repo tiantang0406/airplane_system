@@ -106,13 +106,12 @@ public class UserManagementModule extends JFrame {
             }
             return users;
         }
-        
-        /**
+          /**
          * 添加或更新用户（类似HashMap.put()）
          */
         public User put(String username, User user) {
-            String sql = "INSERT INTO users (username, password, phone, role, status) VALUES (?, ?, ?, ?, ?) " +
-                        "ON DUPLICATE KEY UPDATE phone = ?, role = ?, status = ?";
+            // SQLite 兼容的 UPSERT 语法
+            String sql = "INSERT OR REPLACE INTO users (username, password, phone, role, status) VALUES (?, ?, ?, ?, ?)";
             try (Connection conn = DatabaseManager.getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setString(1, user.username);
@@ -120,9 +119,6 @@ public class UserManagementModule extends JFrame {
                 stmt.setString(3, user.phone);
                 stmt.setString(4, user.role);
                 stmt.setString(5, user.status);
-                stmt.setString(6, user.phone);
-                stmt.setString(7, user.role);
-                stmt.setString(8, user.status);
                 stmt.executeUpdate();
                 return user;
             } catch (SQLException e) {
@@ -286,14 +282,7 @@ public class UserManagementModule extends JFrame {
             }
         }
     }
-    // 模拟用户数据库
-    // 移除静态用户数据库，改用DatabaseManager
-    // private static final Map<String, User> USER_DB = new HashMap<>();
-    static {
-        USER_DB.put("admin", new User("admin", "13800001111", "管理员", "active"));
-        USER_DB.put("user1", new User("user1", "13800002222", "用户", "active"));
-        USER_DB.put("user2", new User("user2", "13800003333", "客服", "inactive"));
-    }
+    
 
     public UserManagementModule() {
         setTitle("用户管理系统");

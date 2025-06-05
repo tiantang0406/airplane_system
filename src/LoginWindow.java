@@ -4,6 +4,215 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
 public class LoginWindow {
+    // 显示主菜单的方法
+    private static void showMainMenu(JFrame loginFrame, String username, String role) {
+        // 清空登录窗口内容
+        loginFrame.getContentPane().removeAll();
+        loginFrame.setTitle("系统主菜单 - " + username + " (" + role + ")");
+        loginFrame.setSize(600, 500);
+
+        // 创建主菜单面板
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        mainPanel.setBackground(Color.WHITE);
+
+        // 顶部欢迎信息
+        JPanel headerPanel = new JPanel(new FlowLayout());
+        headerPanel.setBackground(new Color(240, 248, 255));
+        headerPanel.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
+
+        JLabel welcomeLabel = new JLabel("欢迎您，" + username + "！当前角色：" + role);
+        welcomeLabel.setFont(new Font("微软雅黑", Font.BOLD, 18));
+        welcomeLabel.setForeground(new Color(25, 118, 210));
+        headerPanel.add(welcomeLabel);
+
+        // 功能按钮区域
+        JPanel buttonPanel = new JPanel(new GridBagLayout());
+        buttonPanel.setBackground(Color.WHITE);
+        buttonPanel.setBorder(BorderFactory.createEmptyBorder(30, 30, 30, 30));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(15, 15, 15, 15);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        Font buttonFont = new Font("微软雅黑", Font.PLAIN, 16);
+        Dimension buttonSize = new Dimension(200, 45);
+
+        int row = 0;        // 根据角色显示不同的功能按钮
+        if ("管理员".equals(role)) {
+            // 管理员功能
+            JButton userMgmtBtn = createMenuButton("用户管理", buttonFont, buttonSize, new Color(76, 175, 80));
+            userMgmtBtn.addActionListener(e -> {
+                loginFrame.setVisible(false); // 隐藏主菜单窗口
+                UserManagementModule userModule = new UserManagementModule();
+                userModule.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+                userModule.addWindowListener(new java.awt.event.WindowAdapter() {
+                    @Override
+                    public void windowClosed(java.awt.event.WindowEvent windowEvent) {
+                        loginFrame.setVisible(true); // 返回主菜单
+                    }
+                });
+                userModule.setVisible(true);
+            });
+            gbc.gridx = 0;
+            gbc.gridy = row++;
+            buttonPanel.add(userMgmtBtn, gbc);
+
+            JButton flightMgmtBtn = createMenuButton("航班管理", buttonFont, buttonSize, new Color(33, 150, 243));
+            flightMgmtBtn.addActionListener(e -> {
+                JOptionPane.showMessageDialog(loginFrame, "航班管理功能开发中...", "提示", JOptionPane.INFORMATION_MESSAGE);
+            });
+            gbc.gridx = 0;
+            gbc.gridy = row++;
+            buttonPanel.add(flightMgmtBtn, gbc);        } else if ("用户".equals(role)) {
+            // 普通用户功能
+            JButton queryBtn = createMenuButton("航班查询", buttonFont, buttonSize, new Color(33, 150, 243));
+            queryBtn.addActionListener(e -> {
+                loginFrame.setVisible(false); // 隐藏主菜单窗口
+                // 创建一个新的Frame来包装FlightQueryModule
+                JFrame queryFrame = new JFrame("航班查询");
+                queryFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+                queryFrame.addWindowListener(new java.awt.event.WindowAdapter() {
+                    @Override
+                    public void windowClosed(java.awt.event.WindowEvent windowEvent) {
+                        loginFrame.setVisible(true); // 返回主菜单
+                    }
+                });
+                // 在新线程中启动FlightQueryModule
+                SwingUtilities.invokeLater(() -> {
+                    FlightQueryModule.main(null);
+                    // 找到FlightQueryModule创建的JFrame并添加监听器
+                    java.awt.Window[] windows = java.awt.Window.getWindows();
+                    for (java.awt.Window window : windows) {
+                        if (window instanceof JFrame && "航班查询窗口".equals(((JFrame) window).getTitle())) {
+                            window.addWindowListener(new java.awt.event.WindowAdapter() {
+                                @Override
+                                public void windowClosed(java.awt.event.WindowEvent windowEvent) {
+                                    loginFrame.setVisible(true); // 返回主菜单
+                                }
+                            });
+                            break;
+                        }
+                    }
+                });
+            });
+            gbc.gridx = 0;
+            gbc.gridy = row++;
+            buttonPanel.add(queryBtn, gbc);
+
+            JButton bookingBtn = createMenuButton("订票服务", buttonFont, buttonSize, new Color(156, 39, 176));
+            bookingBtn.addActionListener(e -> {
+                JOptionPane.showMessageDialog(loginFrame, "订票服务功能开发中...", "提示", JOptionPane.INFORMATION_MESSAGE);
+            });
+            gbc.gridx = 0;
+            gbc.gridy = row++;
+            buttonPanel.add(bookingBtn, gbc);
+
+            JButton seatBtn = createMenuButton("选座服务", buttonFont, buttonSize, new Color(255, 152, 0));
+            seatBtn.addActionListener(e -> {
+                JOptionPane.showMessageDialog(loginFrame, "选座服务功能开发中...", "提示", JOptionPane.INFORMATION_MESSAGE);
+            });
+            gbc.gridx = 0;
+            gbc.gridy = row++;
+            buttonPanel.add(seatBtn, gbc);        } else if ("客服".equals(role)) {
+            // 客服功能
+            JButton orderMgmtBtn = createMenuButton("订单管理", buttonFont, buttonSize, new Color(76, 175, 80));
+            orderMgmtBtn.addActionListener(e -> {
+                loginFrame.setVisible(false); // 隐藏主菜单窗口
+                OrderManagementModule orderModule = new OrderManagementModule(username);
+                orderModule.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+                orderModule.addWindowListener(new java.awt.event.WindowAdapter() {
+                    @Override
+                    public void windowClosed(java.awt.event.WindowEvent windowEvent) {
+                        loginFrame.setVisible(true); // 返回主菜单
+                    }
+                });
+                orderModule.setVisible(true);
+            });
+            gbc.gridx = 0;
+            gbc.gridy = row++;
+            buttonPanel.add(orderMgmtBtn, gbc);
+
+            JButton refundBtn = createMenuButton("退票服务", buttonFont, buttonSize, new Color(244, 67, 54));
+            refundBtn.addActionListener(e -> {
+                JOptionPane.showMessageDialog(loginFrame, "退票服务功能开发中...", "提示", JOptionPane.INFORMATION_MESSAGE);
+            });
+            gbc.gridx = 0;
+            gbc.gridy = row++;
+            buttonPanel.add(refundBtn, gbc);
+
+            JButton rescheduleBtn = createMenuButton("改签服务", buttonFont, buttonSize, new Color(255, 193, 7));
+            rescheduleBtn.addActionListener(e -> {
+                JOptionPane.showMessageDialog(loginFrame, "改签服务功能开发中...", "提示", JOptionPane.INFORMATION_MESSAGE);
+            });
+            gbc.gridx = 0;
+            gbc.gridy = row++;
+            buttonPanel.add(rescheduleBtn, gbc);
+        }
+
+        // 通用功能按钮
+        JButton profileBtn = createMenuButton("个人信息", buttonFont, buttonSize, new Color(158, 158, 158));
+        profileBtn.addActionListener(e -> {
+            JOptionPane.showMessageDialog(loginFrame, "个人信息功能开发中...", "提示", JOptionPane.INFORMATION_MESSAGE);
+        });
+        gbc.gridx = 0;
+        gbc.gridy = row++;
+        buttonPanel.add(profileBtn, gbc);
+
+        // 底部按钮区域
+        JPanel bottomPanel = new JPanel(new FlowLayout());
+        bottomPanel.setBackground(Color.WHITE);
+
+        JButton logoutBtn = new JButton("退出登录");
+        logoutBtn.setFont(buttonFont);
+        logoutBtn.setPreferredSize(new Dimension(120, 35));
+        logoutBtn.setBackground(new Color(244, 67, 54));
+        logoutBtn.setForeground(Color.WHITE);
+        logoutBtn.setFocusPainted(false);
+        logoutBtn.addActionListener(e -> {
+            int choice = JOptionPane.showConfirmDialog(loginFrame, "确定要退出登录吗？", "确认", JOptionPane.YES_NO_OPTION);
+            if (choice == JOptionPane.YES_OPTION) {
+                loginFrame.dispose();
+                main(null); // 重新显示登录窗口
+            }
+        });
+
+        bottomPanel.add(logoutBtn);
+
+        // 组装界面
+        mainPanel.add(headerPanel, BorderLayout.NORTH);
+        mainPanel.add(buttonPanel, BorderLayout.CENTER);
+        mainPanel.add(bottomPanel, BorderLayout.SOUTH);
+
+        loginFrame.add(mainPanel);
+        loginFrame.setLocationRelativeTo(null);
+        loginFrame.revalidate();
+        loginFrame.repaint();
+    }
+
+    // 创建菜单按钮的辅助方法
+    private static JButton createMenuButton(String text, Font font, Dimension size, Color bgColor) {
+        JButton button = new JButton(text);
+        button.setFont(font);
+        button.setPreferredSize(size);
+        button.setBackground(bgColor);
+        button.setForeground(Color.WHITE);
+        button.setFocusPainted(false);
+        button.setBorder(BorderFactory.createRaisedBevelBorder());
+
+        // 添加鼠标悬停效果
+        button.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                button.setBackground(bgColor.darker());
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                button.setBackground(bgColor);
+            }
+        });
+
+        return button;
+    }
+
     public static void main(String[] args) {
         // 创建主窗口（尺寸增大到400x300）
         JFrame frame = new JFrame("登录窗口");
@@ -40,14 +249,12 @@ public class LoginWindow {
         mainPanel.add(userLabel, gbc);
 
         // 账号输入框设置
-        JTextField userField = new JTextField(20);  // 明确指定列数
+        JTextField userField = new JTextField(20); // 明确指定列数
         userField.setMinimumSize(new Dimension(200, 30));
         gbc.gridx = 1;
         gbc.gridy = 1;
-        gbc.fill = GridBagConstraints.HORIZONTAL;  // 关键！让输入框水平扩展
+        gbc.fill = GridBagConstraints.HORIZONTAL; // 关键！让输入框水平扩展
         mainPanel.add(userField, gbc);
-
-
 
         // 密码标签和输入框
         JLabel passLabel = new JLabel("密码：");
@@ -57,12 +264,12 @@ public class LoginWindow {
         gbc.anchor = GridBagConstraints.EAST;
         mainPanel.add(passLabel, gbc);
 
-// 密码输入框设置
+        // 密码输入框设置
         JPasswordField passField = new JPasswordField(20);
         passField.setMinimumSize(new Dimension(200, 30));
         gbc.gridx = 1;
         gbc.gridy = 2;
-        gbc.fill = GridBagConstraints.HORIZONTAL;  // 关键！
+        gbc.fill = GridBagConstraints.HORIZONTAL; // 关键！
         mainPanel.add(passField, gbc);
 
         // 按钮面板（使用GridLayout实现并排按钮）
@@ -82,24 +289,9 @@ public class LoginWindow {
 
                 UserManagementModule userManagement = new UserManagementModule();
                 UserManagementModule.UserCredential credential = userManagement.authenticateUser(username, password);
-
                 if (credential != null) {
-                    String role = credential.getRole();
-                    // 根据角色导航到不同模块
-                    // 您可以根据实际需求调整这里的模块导航逻辑
-                    if ("管理员".equals(role)) {
-                        SwingUtilities.invokeLater(() -> new UserManagementModule().setVisible(true));
-                    } else if ("用户".equals(role)) {
-                        // FlightQueryModule 使用 main 方法启动，我们直接调用它
-                        SwingUtilities.invokeLater(() -> FlightQueryModule.main(null));
-                    } else if ("客服".equals(role)) {
-                        // OrderManagementModule 需要用户名作为参数
-                        SwingUtilities.invokeLater(() -> new OrderManagementModule(username).setVisible(true));
-                    } else {
-                        // 其他角色或默认处理
-                        JOptionPane.showMessageDialog(frame, "登录成功，但角色未配置导航。", "提示", JOptionPane.INFORMATION_MESSAGE);
-                    }
-                    frame.dispose(); // 关闭登录窗口
+                    // 登录成功，显示主菜单
+                    showMainMenu(frame, username, credential.getRole());
                 } else {
                     JOptionPane.showMessageDialog(frame, "账号或密码错误，或账户未激活！", "登录失败", JOptionPane.ERROR_MESSAGE);
                 }
