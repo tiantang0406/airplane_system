@@ -1,5 +1,7 @@
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 
 public class LoginWindow {
     public static void main(String[] args) {
@@ -71,6 +73,38 @@ public class LoginWindow {
         JButton loginButton = new JButton("登录");
         loginButton.setFont(new Font("微软雅黑", Font.PLAIN, 16));
         loginButton.setPreferredSize(new Dimension(120, 35)); // 增大按钮尺寸
+
+        loginButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                String username = userField.getText();
+                String password = new String(passField.getPassword());
+
+                UserManagementModule userManagement = new UserManagementModule();
+                UserManagementModule.UserCredential credential = userManagement.authenticateUser(username, password);
+
+                if (credential != null) {
+                    String role = credential.getRole();
+                    // 根据角色导航到不同模块
+                    // 您可以根据实际需求调整这里的模块导航逻辑
+                    if ("管理员".equals(role)) {
+                        SwingUtilities.invokeLater(() -> new UserManagementModule().setVisible(true));
+                    } else if ("用户".equals(role)) {
+                        // FlightQueryModule 使用 main 方法启动，我们直接调用它
+                        SwingUtilities.invokeLater(() -> FlightQueryModule.main(null));
+                    } else if ("客服".equals(role)) {
+                        // OrderManagementModule 需要用户名作为参数
+                        SwingUtilities.invokeLater(() -> new OrderManagementModule(username).setVisible(true));
+                    } else {
+                        // 其他角色或默认处理
+                        JOptionPane.showMessageDialog(frame, "登录成功，但角色未配置导航。", "提示", JOptionPane.INFORMATION_MESSAGE);
+                    }
+                    frame.dispose(); // 关闭登录窗口
+                } else {
+                    JOptionPane.showMessageDialog(frame, "账号或密码错误，或账户未激活！", "登录失败", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        });
 
         JButton returnButton = new JButton("返回");
         returnButton.setFont(new Font("微软雅黑", Font.PLAIN, 16));
